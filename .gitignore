@@ -1,0 +1,3 @@
+# Exclude build directories, since they are artifacts of compilation
+
+/build/
