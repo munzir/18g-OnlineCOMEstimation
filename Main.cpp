@@ -92,6 +92,7 @@ dart::dynamics::SkeletonPtr createKrang() {
   dart::utils::DartLoader loader;
   dart::dynamics::SkeletonPtr krang =
       loader.parseSkeleton("/home/panda/myfolder/wholebodycontrol/09-URDF/Krang/KrangOld.urdf");
+      //loader.parseSkeleton("/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/KrangOld.urdf");
   krang->setName("krang");
 
   // Initiale pose parameters
@@ -104,7 +105,7 @@ dart::dynamics::SkeletonPtr createKrang() {
   double qWaistInit = -4*M_PI/3;
   double qTorsoInit = 0;
   double qKinectInit = 0;
-  Eigen::Matrix<double, 7, 1> qLeftArmInit; 
+  Eigen::Matrix<double, 7, 1> qLeftArmInit;
   qLeftArmInit << 1.102, -0.589, 0.000, -1.339, 0.000, 0.3, 0.000;
   Eigen::Matrix<double, 7, 1> qRightArmInit;
   qRightArmInit << -1.102, 0.589, 0.000, 1.339, 0.000, 1.4, 0.000;*/
@@ -129,8 +130,8 @@ dart::dynamics::SkeletonPtr createKrang() {
   double qKinectInit; qKinectInit = initPoseParams(9);
   Eigen::Matrix<double, 7, 1> qLeftArmInit; qLeftArmInit << initPoseParams.segment(10, 7);
   Eigen::Matrix<double, 7, 1> qRightArmInit; qRightArmInit << initPoseParams.segment(17, 7);
-  
-  // Calculating the axis angle representation of orientation from headingInit and qBaseInit: 
+
+  // Calculating the axis angle representation of orientation from headingInit and qBaseInit:
   // RotX(pi/2)*RotY(-pi/2+headingInit)*RotX(-qBaseInit)
   Eigen::Transform<double, 3, Eigen::Affine> baseTf = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
   baseTf.prerotate(Eigen::AngleAxisd(-qBaseInit,Eigen::Vector3d::UnitX())).prerotate(Eigen::AngleAxisd(-M_PI/2+headingInit,Eigen::Vector3d::UnitY())).prerotate(Eigen::AngleAxisd(M_PI/2, Eigen::Vector3d::UnitX()));
@@ -140,7 +141,7 @@ dart::dynamics::SkeletonPtr createKrang() {
   const int dof = (const int)krang->getNumDofs();
   comOptParams optParams;
   optParams.robot = krang;
-  optParams.qInit << aa.angle()*aa.axis(), xyzInit, qLWheelInit, qRWheelInit, qWaistInit, qTorsoInit, qKinectInit, qLeftArmInit, qRightArmInit; 
+  optParams.qInit << aa.angle()*aa.axis(), xyzInit, qLWheelInit, qRWheelInit, qWaistInit, qTorsoInit, qKinectInit, qLeftArmInit, qRightArmInit;
   nlopt::opt opt(nlopt::LN_COBYLA, dof);
   std::vector<double> q_vec(dof);
   double minf;
@@ -152,7 +153,7 @@ dart::dynamics::SkeletonPtr createKrang() {
   opt.set_maxtime(10);
   opt.optimize(q_vec, minf);
   Eigen::Matrix<double, 25, 1> q(q_vec.data());
-  
+
   // Initializing the configuration
   krang->setPositions(q);
 
