@@ -8,7 +8,8 @@ add_compile_options(-std=c++11)
 
 include_directories(${DART_INCLUDE_DIRS})
 
-file(GLOB srcs "*.cpp" "*.hpp")
+file(GLOB srcs "Main.cpp" "Main.hpp" "MyWindow.cpp" "MyWindow.hpp"
+    "Controller.cpp" "Controller.hpp" "gen_phi_matrix.cpp" "gen_phi_matrix.hpp")
 add_executable(${PROJECT_NAME} ${srcs})
 
 target_link_libraries(${PROJECT_NAME} ${DART_LIBRARIES} nlopt config4cpp)

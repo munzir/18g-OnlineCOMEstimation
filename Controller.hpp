@@ -42,9 +42,10 @@
 #include <iostream>
 #include <fstream>
 
+#include "gen_phi_matrix.hpp"
 
 using namespace dart;
-using namespace std;  
+using namespace std;
 using namespace config4cpp;
 
 class filter {
@@ -56,7 +57,7 @@ class filter {
     }
     void AddSample(Eigen::VectorXd v)
     {
-      if(samples.full()) 
+      if(samples.full())
       {
         total -= samples.front();
       }
@@ -64,11 +65,11 @@ class filter {
       total += v;
       average = total/samples.size();
     }
-  
+
     boost::circular_buffer<Eigen::VectorXd> samples;
     Eigen::VectorXd total;
     Eigen::VectorXd average;
-    
+
 };
 
 /// \brief Operational space controller for 6-dof manipulator
@@ -95,6 +96,13 @@ public:
   void updateExtendedStateObserverStates();
 
   double activeDisturbanceRejectionControl();
+
+  void updateBalanceState();
+
+  void updateRobotParameters();
+  void learnRobotParameters();
+  Eigen::MatrixXd getRobotParameters();
+  void setRobotParameters(Eigen::MatrixXd newParameters, int bodyParams);
 
   Eigen::Vector3d getBodyCOM(dart::dynamics::SkeletonPtr robot);
 
@@ -129,11 +137,11 @@ public:
   double mqBody1;
   Eigen::Matrix<double, 18, 1> mqBody;
   double mthWheel, mthCOM, mthCOM_true;
-  
+
   Eigen::Matrix<double, 25, 1> mdq;
   Eigen::Vector3d mdxyz0;
   double mdx, mdqBody1, mdpsi;
-  Eigen::Matrix<double, 18, 1> mdqBody;  
+  Eigen::Matrix<double, 18, 1> mdqBody;
   Eigen::Matrix<double, 20, 1> mdqMin;
   double mdthR, mdthL, mdthWheel, mdthCOM;
 
@@ -158,6 +166,12 @@ public:
 
   // Simulation sampling time
   double mdt;
+
+  // Balance State
+  bool mIsBalanced;
+
+  // Predicted Robot Parameters
+  Eigen::MatrixXd mPredictedRobotParameters;
 
   // For plotting purposes
   ofstream mOutFile;
