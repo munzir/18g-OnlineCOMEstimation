@@ -1,0 +1,1 @@
+/usr/bin/c++      CMakeFiles/lqr.dir/lqr.cpp.o  -o lqr  -L/usr/lib/octave-4.0.0 -rdynamic -loctave -loctinterp -Wl,-rpath,/usr/lib/octave-4.0.0 
