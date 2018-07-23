@@ -13,7 +13,8 @@
 #include <octave/oct.h>
 #include <octave/octave.h>
 #include <octave/parse.h>
-#include <octave/interpreter.h>
+#include <octave/toplev.h>
+//#include <octave/interpreter.h>
 
 int
 main (void)
@@ -44,18 +45,32 @@ main (void)
 
     // LQR Test
     // TODOS: make sure i can call lqr
-    n = 2;
+    n = 4;
     int m = 1;
 
     Matrix a = Matrix (n, n);
-    for (octave_idx_type i = 0; i < n; i++)
-        for (octave_idx_type j = 0; j < n; j++)
-            a(i, j) = 1;
+    a(0, 0) = 0;
+    a(0, 1) = 0;
+    a(0, 2) = 1;
+    a(0, 3) = 0;
+    a(1, 0) = 0;
+    a(1, 1) = 0;
+    a(1, 2) = 0;
+    a(1, 3) = 1;
+    a(2, 0) = 17.78;
+    a(2, 1) = 0;
+    a(2, 2) = -0.00858;
+    a(2, 3) = 0.00858;
+    a(3, 0) = 47.8688;
+    a(3, 1) = 0;
+    a(3, 2) = 0.0288;
+    a(3, 3) = -0.0288;
 
     Matrix b = Matrix (n, m);
-    for (octave_idx_type i = 0; i < n; i++)
-        for (octave_idx_type j = 0; j < m; j++)
-            b(i, j) = 1;
+    b(0, 0) = 0;
+    b(1, 0) = 0;
+    b(2, 0) = -0.0858;
+    b(3, 0) = 0.288;
 
     Matrix q = Matrix (n, n);
     for (octave_idx_type i = 0; i < n; i++)
@@ -65,7 +80,7 @@ main (void)
     Matrix r = Matrix (m, m);
     for (octave_idx_type i = 0; i < m; i++)
         for (octave_idx_type j = 0; j < m; j++)
-            q(i, j) = 1;
+            r(i, j) = 1;
 
     octave_value_list lqrin;
     lqrin(0) = a;
@@ -74,26 +89,27 @@ main (void)
     lqrin(3) = r;
 
     std::cout << lqrin(0).matrix_value() << std::endl;
-
+    std::cout << lqrin(1).matrix_value() << std::endl;
+    std::cout << lqrin(2).matrix_value() << std::endl;
+    std::cout << lqrin(3).matrix_value() << std::endl;
 
     std::cout << "Trying feval" << std::endl;
 
     //feval("pkg", ovl("list"), 0);
 
-    //feval("pkg", ovl("load", "control"), 0);
+    feval("pkg", ovl("load", "control"), 0);
 
-    octave_value_list f_arg, f_ret;
-	f_arg(0) = octave_value(-1);
-	f_ret = feval("acos", f_arg);
-	Matrix unis (f_ret(0).matrix_value ());
-	std::cout << unis;
+    //octave_value_list f_arg, f_ret;
+	//f_arg(0) = octave_value(-1);
+	//f_ret = feval("acos", f_arg);
+	//Matrix unis (f_ret(0).matrix_value ());
+	//std::cout << unis;
 
-    octave_value_list is = octave_value('s');
-    //feval("tf", is, 1);
+    octave_value_list lqrout = feval ("lqr", lqrin, 3);
 
-    //octave_value_list os = feval("acos");
-
-    //octave_value_list lqrout = feval ("lqr", lqrin, 3);
+    std::cout << lqrout(0).matrix_value() << std::endl;
+    std::cout << lqrout(1).matrix_value() << std::endl;
+    std::cout << lqrout(2).matrix_value() << std::endl;
 
     std::cout << "Success!" << std::endl;
     clean_up_and_exit(0);

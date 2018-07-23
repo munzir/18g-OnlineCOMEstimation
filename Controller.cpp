@@ -612,7 +612,6 @@ void Controller::update(const Eigen::Vector3d& _LeftTargetPosition,const Eigen::
   // but next thing is what is/ do we have a controller for going pose to pose
   // RRT provides target nodes but how to implement that within a Controller.cpp
   // file
-
   updateRobotPose();
 
   // Dump data
