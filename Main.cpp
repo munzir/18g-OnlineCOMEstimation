@@ -36,6 +36,7 @@
 #include <nlopt.hpp>
 
 #include "MyWindow.hpp"
+#include "file_ops.hpp"
 
 using namespace std;
 using namespace dart::common;
@@ -111,7 +112,8 @@ dart::dynamics::SkeletonPtr createKrang() {
   qRightArmInit << -1.102, 0.589, 0.000, 1.339, 0.000, 1.4, 0.000;*/
 
   // Read initial pose from the file
-  ifstream file("../defaultInit.txt");
+  //ifstream file("../defaultInit.txt");
+  ifstream file("../reorientedbalancedPoses.txt");
   assert(file.is_open());
   char line [1024];
   file.getline(line, 1024);
@@ -180,6 +182,7 @@ dart::dynamics::SkeletonPtr createFloor()
 
   // Put the body into position
   Eigen::Isometry3d tf(Eigen::Isometry3d::Identity());
+  // TODO Original line commented out
   tf.translation() = Eigen::Vector3d(0.0, 0.0, -floor_height / 2.0);
   body->getParentJoint()->setTransformFromParentBodyNode(tf);
 
@@ -188,6 +191,13 @@ dart::dynamics::SkeletonPtr createFloor()
 
 int main(int argc, char* argv[])
 {
+
+    // Input poses that are balanced for ADRC
+    //string trajectoryFilename = "../balancedPoses.txt";
+    string trajectoryFilename = "../reorientedbalancedPoses.txt";
+    Eigen::MatrixXd trajectory = readInputFileAsMatrix(trajectoryFilename);
+
+
   // create and initialize the world
   dart::simulation::WorldPtr world(new dart::simulation::World);
   assert(world != nullptr);
@@ -205,7 +215,7 @@ int main(int argc, char* argv[])
   world->setTimeStep(1.0/1000);
 
   // create a window and link it to the world
-  MyWindow window(new Controller(robot) );
+  MyWindow window(new Controller(robot, trajectory) );
   window.setWorld(world);
 
   glutInit(&argc, argv);

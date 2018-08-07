@@ -1,0 +1,3 @@
+/home/apatel435/Desktop/WholeBodyControlAttempt1/18gBalancingWithCoMError/lqrOctave/build/CMakeFiles/rebuild_cache.dir
+/home/apatel435/Desktop/WholeBodyControlAttempt1/18gBalancingWithCoMError/lqrOctave/build/CMakeFiles/edit_cache.dir
+/home/apatel435/Desktop/WholeBodyControlAttempt1/18gBalancingWithCoMError/lqrOctave/build/CMakeFiles/lqr.dir
