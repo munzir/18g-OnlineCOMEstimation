@@ -43,6 +43,7 @@
 #include <fstream>
 
 #include "gen_phi_matrix.hpp"
+#include "lqr.hpp"
 
 using namespace dart;
 using namespace std;
@@ -76,7 +77,7 @@ class filter {
 class Controller {
 public:
   /// \brief Constructor
-  Controller( dart::dynamics::SkeletonPtr _robot);
+  Controller( dart::dynamics::SkeletonPtr _robot, Eigen::MatrixXd _trajectory);
 
   /// \brief Destructor
   virtual ~Controller();
@@ -99,10 +100,12 @@ public:
 
   void updateBalanceState();
 
-  void updateRobotParameters();
+  void updateGuessRobotParameters();
   void learnRobotParameters();
-  Eigen::MatrixXd getRobotParameters();
-  void setRobotParameters(Eigen::MatrixXd newParameters, int bodyParams);
+  Eigen::MatrixXd getGuessRobotParameters();
+  void setGuessRobotParameters(Eigen::MatrixXd newParameters, int bodyParams);
+
+  void updateRobotPose();
 
   Eigen::Vector3d getBodyCOM(dart::dynamics::SkeletonPtr robot);
 
@@ -167,11 +170,17 @@ public:
   // Simulation sampling time
   double mdt;
 
-  // Balance State
-  bool mIsBalanced;
+    // Balance State
+    bool mIsBalanced;
 
-  // Predicted Robot Parameters
-  Eigen::MatrixXd mPredictedRobotParameters;
+    // Guess Robot Parameters
+    Eigen::MatrixXd mGuessRobotParameters;
+
+    // Trajectory
+    Eigen::MatrixXd mTrajectory;
+
+    // Current Pose
+    int mCurrTargetPose;
 
   // For plotting purposes
   ofstream mOutFile;

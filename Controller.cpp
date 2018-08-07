@@ -33,8 +33,8 @@
 
 
 //==========================================================================
-Controller::Controller(dart::dynamics::SkeletonPtr _robot)
-  : mRobot(_robot)
+Controller::Controller(dart::dynamics::SkeletonPtr _robot, Eigen::MatrixXd _trajectory)
+  : mRobot(_robot), mTrajectory(_trajectory)
    {
   assert(_robot != nullptr);
   int dof = mRobot->getNumDofs();
@@ -43,9 +43,16 @@ Controller::Controller(dart::dynamics::SkeletonPtr _robot)
   mSteps = 0;
   mdt = mRobot->getTimeStep();
 
-  // *************** Initialize Real Robot Parameters
-  // Used as initial parameters to learn with
-    mPredictedRobotParameters = getRobotParameters();
+
+    // *************** Initialize Pose Counter
+    // Used to determine where we are in our trajectory
+    mCurrTargetPose = 0;
+
+    // *************** Initialize Robot to first Target Pose
+    mRobot->setPositions(mTrajectory.row(mCurrTargetPose));
+
+    mIsBalanced = false;
+
 
   // *************** Initialize Guess Robot
   mGuessRobot = mRobot->clone();
@@ -56,6 +63,9 @@ Controller::Controller(dart::dynamics::SkeletonPtr _robot)
 
   int bodyParams = 4; double minXCOMError = 0.02, maxDeviation = 0.50, maxOffset = 0.50;
   changeRobotParameters(mGuessRobot, bodyParams, minXCOMError, maxDeviation, maxOffset);
+
+    // Used as initial parameters to learn with
+    mGuessRobotParameters = getGuessRobotParameters();
 
   // ************** Lock joints
   int joints = mRobot->getNumJoints();
@@ -345,6 +355,8 @@ void Controller::updateExtendedStateObserverParameters() {
   // ******************** Robot dynamics for LQR Gains (Not used)
   Eigen::Matrix<double, 4, 4> A;
   Eigen::Matrix<double, 4, 1> B;
+    Eigen::Matrix<double, 4, 4> Q;
+    Eigen::Matrix<double, 1, 1> R;
 
   A << 0, 0, 1, 0,
        0, 0, 0, 1,
@@ -355,10 +367,29 @@ void Controller::updateExtendedStateObserverParameters() {
        0,
        -c1/delta,
        c2/delta;
+
+    // Q and R from Matlab simulation code
+    // Need to make sure these are correct
+    // TODO im p sure they are not
+    Q << 1,   0,  0, 0,
+         0, 320,  0, 0,
+         0,   0, 100, 0,
+         0,   0,  0, 300;
+    Q = 300 * Q;
+
+    R << 500;
+
   if(mSteps == 1) {
     cout << A << endl;
     cout << B << endl;
+        cout << Q << endl;
+        cout << R << endl;
   }
+
+    Eigen::MatrixXd F;
+
+    //lqr(A, B, Q, R, &F);
+    //cout << F << endl;
 
   // A << 0, 0, 1, 0,
   //      0, 0, 0, 1,
@@ -444,7 +475,7 @@ double Controller::activeDisturbanceRejectionControl() {
   // Munzir (from MATLAB?)
   F << -953.5142, -13.8564, -330.9289, -29.5582; // By Munzir, based on A, B matrices calculated in updateESOParameters() function
   // TODO need to confirm values
-  // Akash (in house) using ones for q and r and zeros for n
+  // Akash (using c++/octave)
   // F << -220.684, 0, -0.942423, -0.0970048;
 
 
@@ -486,7 +517,9 @@ void Controller::updateBalanceState() {
     // TODO
     // condition in if statement should be if xcom is < than some value (1mm)
     // How to get the xcom value in the right frame tho?
-    double eps = 1e-3;
+    // Need to fix this condition since robot is learning when we first start
+    // the simulation(at the unbalanced position)
+    double eps = 1e-4;
     if (maxRobotVel < eps) {
         mIsBalanced = true;
     } else {
@@ -495,11 +528,13 @@ void Controller::updateBalanceState() {
 }
 
 // ==========================================================================
-void Controller::updateRobotParameters() {
+void Controller::updateGuessRobotParameters() {
 
-    if (mIsBalanced) {
+    if (mIsBalanced && mCurrTargetPose != 0) {
         learnRobotParameters();
-        cout << "\rBeta: " << mPredictedRobotParameters.block(0, 0, 1, 12);
+        cout << "\rBeta: " << mGuessRobotParameters.block(0, 0, 1, 12);
+        //TODO
+        //setGuessRobotParameters(mGuessRobotParameters, 4);
     }
 }
 
@@ -509,23 +544,23 @@ void Controller::learnRobotParameters() {
 
     Eigen::MatrixXd phiVec = genPhiMatrix(mRobot, balancedPose, 4);
     int n = 300;
-    double xCOMPred = (phiVec * mPredictedRobotParameters.transpose())(0, 0);
+    double xCOMPred = (phiVec * mGuessRobotParameters.transpose())(0, 0);
     Eigen::MatrixXd delta = phiVec;
 
-    mPredictedRobotParameters = mPredictedRobotParameters - (n * xCOMPred * delta);
+    mGuessRobotParameters = mGuessRobotParameters - (n * xCOMPred * delta);
 
 }
 
 // ==========================================================================
-Eigen::MatrixXd Controller::getRobotParameters() {
+Eigen::MatrixXd Controller::getGuessRobotParameters() {
 
-    int numBodies = mRobot->getNumBodyNodes();
+    int numBodies = mGuessRobot->getNumBodyNodes();
     int bodyParams = 4;
     Eigen::MatrixXd parameters(1, numBodies * bodyParams);
     double mi, xi, yi, zi;
 
     for (int i = 0; i < numBodies; i++) {
-        BodyNodePtr bodyi = mRobot->getBodyNode(i);
+        BodyNodePtr bodyi = mGuessRobot->getBodyNode(i);
         mi = bodyi->getMass();
         xi = bodyi->getLocalCOM()(0);
         yi = bodyi->getLocalCOM()(1);
@@ -542,7 +577,7 @@ Eigen::MatrixXd Controller::getRobotParameters() {
 }
 
 // ==========================================================================
-void Controller::setRobotParameters(Eigen::MatrixXd parameters, int bodyParams) {
+void Controller::setGuessRobotParameters(Eigen::MatrixXd parameters, int bodyParams) {
     Eigen::Vector3d bodyMCOM;
     double mi;
     int numBodies = parameters.cols()/bodyParams;
@@ -552,8 +587,42 @@ void Controller::setRobotParameters(Eigen::MatrixXd parameters, int bodyParams) 
         bodyMCOM(1) = parameters(0, i * bodyParams + 2);
         bodyMCOM(2) = parameters(0, i * bodyParams + 3);
 
-        mRobot->getBodyNode(i)->setMass(mi);
-        mRobot->getBodyNode(i)->setLocalCOM(bodyMCOM/mi);
+        mGuessRobot->getBodyNode(i)->setMass(mi);
+        mGuessRobot->getBodyNode(i)->setLocalCOM(bodyMCOM/mi);
+    }
+}
+
+// ==========================================================================
+void Controller::updateRobotPose() {
+    //TODO
+    // Get trajectories to work
+    // for now just jump to target pose
+    // Figure out how to move to mCurrTargetPose
+    if (mIsBalanced) {
+        // 24th pose goes crazy maybe the LQR gains are off for it?
+        // The ones before are p fine
+        //cout << "Here" << endl;
+        //cout << mTrajectory.row(mCurrTargetPose) << endl;
+        mCurrTargetPose++;
+        mRobot->setPositions(mTrajectory.row(mCurrTargetPose));
+        mGuessRobot->setPositions(mRobot->getPositions());
+        // TODO
+        // Set velocities to track the trajectory
+        //mRobot->setVelocities((mTrajectory.row(mCurrTargetPose) - mTrajectory.row(mCurrTargetPose + 1))/1);
+        //mGuessRobot->setVelocities(mRobot->getVelocities());
+        mCurrTargetPose++;
+    }
+
+    //// Check to see if next pose is reached
+    //// Target pose is listed twice in a row in trajectory file
+    if ((mRobot->getPositions().transpose()).isApprox(mTrajectory.row(mCurrTargetPose + 1))) {
+        // Since a target pose is written twice in a row, need to make sure the
+        // next target pose after this one is counted from the right location
+        // Basically this moves to the next duplicate entry
+        mCurrTargetPose++;
+    } else {
+        //mRobot->setVelocities((mTrajectory.row(mCurrTargetPose) - mTrajectory.row(mCurrTargetPose + 1))/1);
+        //mGuessRobot->setVelocities(mRobot->getVelocities());
     }
 }
 
@@ -563,34 +632,41 @@ void Controller::update(const Eigen::Vector3d& _LeftTargetPosition,const Eigen::
   // increase the step counter
   mSteps++;
 
-  // updates mBaseTf, mq, mxyz0, mpsi, mqBody1, mqBody, mRot0
-  // Needs mRobot
-  updatePositions();
+    // updates mBaseTf, mq, mxyz0, mpsi, mqBody1, mqBody, mRot0
+    // Needs mRobot
+    updatePositions();
 
-  // updates mdq, mdxyz0, mdx, mdqBody1, mdpsi, mdqBody, mdqMin, dRot0
-  // Needs mRobot, mdqFilt, mBaseTf, mqBody1
-  updateSpeeds();
+    // updates mdq, mdxyz0, mdx, mdqBody1, mdpsi, mdqBody, mdqMin, dRot0
+    // Needs mRobot, mdqFilt, mBaseTf, mqBody1
+    updateSpeeds();
 
-  // Apply the Control
-  double wheelsTorque;
-  wheelsTorque = activeDisturbanceRejectionControl();
-  mForces(0) = 0.5*wheelsTorque;
-  mForces(1) = 0.5*wheelsTorque;
-  const vector<size_t > index{6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
-  mRobot->setForces(index, mForces);
+    // Apply the Control
+    double wheelsTorque;
+    wheelsTorque = activeDisturbanceRejectionControl();
+    mForces(0) = 0.5*wheelsTorque;
+    mForces(1) = 0.5*wheelsTorque;
+    const vector<size_t > index{6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
+    mRobot->setForces(index, mForces);
 
-  // Update Extended State Observer
-  updateExtendedStateObserverParameters();
-  updateExtendedStateObserverStates();
+    // Update Extended State Observer
+    updateExtendedStateObserverParameters();
+    updateExtendedStateObserverStates();
 
-  // TODO:
-  // Update whether robot is balanced or not
-  updateBalanceState();
+    // TODO:
+    // Update if the robot is balanced or not
+    updateBalanceState();
 
-  // TODO
-  // Update robot system parameters if balanced
-  // Update robot's system id via learning from input pose
-  updateRobotParameters();
+    // TODO
+    // Update robot system parameters if balanced
+    // Update robot's system id via learning from input pose
+    updateGuessRobotParameters();
+
+    // update that goes to the next pose if needed
+    // TODO
+    updateRobotPose();
+
+    //cout << mIsBalanced << endl;
+    cout << "\r" << mCurrTargetPose;
 
   // TODO
   // If balanced go to next pose
@@ -612,7 +688,6 @@ void Controller::update(const Eigen::Vector3d& _LeftTargetPosition,const Eigen::
   // but next thing is what is/ do we have a controller for going pose to pose
   // RRT provides target nodes but how to implement that within a Controller.cpp
   // file
-  updateRobotPose();
 
   // Dump data
   mOutFile << mthCOM_true << ", " << mthCOM << endl;

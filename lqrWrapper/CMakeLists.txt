@@ -9,6 +9,15 @@ if(NOT MKOCTFILE_EXECUTABLE)
     message(SEND_ERROR "Failed to find mkoctfile, is it in your $PATH?")
 endif()
 
+INCLUDE_DIRECTORIES(
+    /usr/include/octave-4.0.0/
+    )
+
+LINK_DIRECTORIES(
+    /usr/lib/octave-4.0.0/
+    )
+
+
 #set(MKOCTFILE "mkoctfile")
 #set(OCTARG "--link-stand-alone")
 #add_custom_command(TARGET reordering-library
@@ -28,4 +37,5 @@ include_directories(${DART_INCLUDE_DIRS})
 file(GLOB srcs "lqr.cpp" "lqr.hpp")
 add_executable(${PROJECT_NAME} ${srcs})
 
-target_link_libraries(${PROJECT_NAME} ${DART_LIBRARIES} nlopt config4cpp)
+target_link_libraries(${PROJECT_NAME} ${DART_LIBRARIES} nlopt config4cpp octave
+    octinterp)
